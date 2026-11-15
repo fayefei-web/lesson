@@ -1,0 +1,243 @@
+/* 《鄭人買履》課堂動畫放映
+   畫面語言：宣紙米底、墨色字、朱紅進度。全部用 CSS 變數控制，
+   要換紙色或字色只改這裡。 */
+
+:root {
+  --paper: #f3ecde;
+  --paper-deep: #e8dfcc;
+  --ink: #241f1a;
+  --ink-soft: #4a4137;
+  --cinnabar: #a83a2b;
+  --serif: "Songti SC", "Noto Serif CJK TC", "Source Han Serif TC", "STSong", serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #14110d;
+  overflow: hidden;
+  font-family: var(--serif);
+}
+
+/* 畫框固定 16:9：投影機是 4:3 或 16:10 時自動上下留黑邊，
+   不會把畫面的左右裁掉（教室投影最常見的翻車點）。 */
+body { display: grid; place-items: center; }
+
+#stage {
+  position: relative;
+  width: min(100vw, 177.78vh);
+  height: min(100vh, 56.25vw);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+/* ---------- 鏡頭層 ---------- */
+#shots { position: absolute; inset: 0; }
+
+.shot {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .78s ease;
+  will-change: opacity;
+}
+.shot.on { opacity: 1; }
+
+.shot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+  transform: translate(var(--x1, 0%), var(--y1, 0%)) scale(var(--s1, 1.05));
+  will-change: transform;
+}
+.shot.on img {
+  animation: kenburns var(--d, 6s) linear both;
+  animation-play-state: running;
+}
+#stage.paused .shot.on img { animation-play-state: paused; }
+
+/* 第 13 鏡《分鏡總覽》完整顯示 12 格全貌，不裁切任何一格 */
+.shot.overview img {
+  object-fit: contain;
+  padding: 2vh 2.5vw 3.2vh;
+}
+
+/* 位移寫在 scale 前面：translate 用的是未縮放的元素尺寸，
+   這樣 f 座標算出來的位移量才是可直接對照畫面的百分比。 */
+@keyframes kenburns {
+  from { transform: translate(var(--x1, 0%), var(--y1, 0%)) scale(var(--s1, 1.05)); }
+  to   { transform: translate(var(--x2, 0%), var(--y2, 0%)) scale(var(--s2, 1.12)); }
+}
+
+/* ---------- 字幕層 ---------- */
+.line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5vh;
+  text-align: center;
+  font-size: clamp(30px, 3.4vw, 58px);
+  line-height: 1.5;
+  letter-spacing: .06em;
+  color: var(--ink);
+  padding: 0 6vw;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .55);
+  transition: opacity .35s ease;
+}
+
+.ch {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(7px);
+  filter: blur(2px);
+}
+.shot.on .ch {
+  animation: chIn .62s cubic-bezier(.22, .78, .28, 1) forwards;
+  animation-delay: calc(260ms + var(--i) * 46ms);
+  animation-play-state: running;
+}
+#stage.paused .shot.on .ch { animation-play-state: paused; }
+
+@keyframes chIn {
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.shot.tp-top .line { top: 7.5vh; bottom: auto; }
+
+/* 最後一句收得更慢一點，留白多一拍 */
+.shot.final .line { font-size: clamp(32px, 3.7vw, 64px); letter-spacing: .1em; }
+
+/* 按 C 鍵隱藏字幕時的平滑過渡 */
+#stage.hide-captions .line,
+#stage.hide-captions .scrim {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* ---------- 紙感與壓邊 ---------- */
+/* 壓邊放在每個鏡頭內、夾在畫與字之間：
+   若提到外層用 z-index，會把墨色字一起洗白。 */
+.scrim {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 25%;
+  background: linear-gradient(to top,
+    rgba(243, 236, 222, .96) 0%,
+    rgba(243, 236, 222, .86) 28%,
+    rgba(243, 236, 222, .42) 62%,
+    rgba(243, 236, 222, 0) 100%);
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+/* 主體壓在畫面下半時（腳、繩），字改放上方，壓邊也跟著翻到上面。
+   上方比下方淡一級：畫面上半常有手、臉，洗得太白會像圖壞了。 */
+.scrim.top {
+  top: 0; bottom: auto;
+  height: 30%;
+  background: linear-gradient(to bottom,
+    rgba(243, 236, 222, .88) 0%,
+    rgba(243, 236, 222, .70) 26%,
+    rgba(243, 236, 222, .28) 60%,
+    rgba(243, 236, 222, 0) 100%);
+}
+
+#grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: .35;
+  mix-blend-mode: multiply;
+  background-image:
+    radial-gradient(circle at 22% 18%, rgba(120, 100, 70, .05) 0 1px, transparent 1px),
+    radial-gradient(circle at 68% 62%, rgba(120, 100, 70, .045) 0 1px, transparent 1px),
+    radial-gradient(circle at 44% 86%, rgba(120, 100, 70, .05) 0 1px, transparent 1px);
+  background-size: 3px 3px, 4px 4px, 5px 5px;
+}
+
+/* 四角壓暗，投影機上更像紙本 */
+#stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 46%,
+    rgba(0, 0, 0, 0) 52%,
+    rgba(90, 70, 45, .10) 100%);
+}
+
+/* ---------- 進度條 ---------- */
+#bar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 5px;
+  z-index: 6;
+  background: rgba(60, 48, 34, .10);
+}
+#segs { display: flex; height: 100%; gap: 2px; }
+.seg {
+  flex: 1;
+  background: rgba(60, 48, 34, .14);
+  overflow: hidden;
+  cursor: pointer;
+  transition: background .2s;
+}
+.seg:hover { background: rgba(168, 58, 43, .35); }
+.seg.overview-seg { flex: 1.35; }
+.seg i { display: block; height: 100%; width: 0; background: var(--cinnabar); }
+.seg.done i { width: 100%; }
+.seg.cur i { animation: fill var(--d, 6s) linear forwards; }
+#stage.paused .seg.cur i { animation-play-state: paused; }
+
+@keyframes fill { to { width: 100%; } }
+
+/* ---------- 提示與說明 ---------- */
+#hint {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 11px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  opacity: 0;
+  transition: opacity .5s;
+  z-index: 7;
+  pointer-events: none;
+}
+#hint.show { opacity: .62; }
+
+#help {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(580px, 88vw);
+  padding: 26px 30px;
+  background: rgba(247, 241, 230, .97);
+  border: 1px solid rgba(80, 62, 40, .22);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 2;
+  color: var(--ink);
+  letter-spacing: .03em;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .35s, visibility .35s;
+  z-index: 8;
+  box-shadow: 0 12px 40px rgba(60, 44, 26, .18);
+}
+#help.show { opacity: 1; visibility: visible; }
+#help b { font-weight: 600; letter-spacing: .08em; color: var(--cinnabar); }
+#help .dim { color: var(--ink-soft); opacity: .85; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shot.on img { animation: none; }
+  .shot.on .ch { animation: none; opacity: 1; transform: none; filter: none; }
+}
